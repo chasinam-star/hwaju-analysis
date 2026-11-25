@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>부산영업팀 화주분석</title>
+<meta name="robots" content="noindex,nofollow">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="vendor/xlsx.full.min.js"></script>
+<style>
+:root{
+  /* 항만 야드 톤: 짙은 남색 잉크 + 컨테이너 오렌지 포인트, 표 중심 업무 화면 */
+  --bg:#f4f6f8; --panel:#ffffff; --ink:#14202e; --muted:#5d6b7a; --line:#dde3ea;
+  --accent:#0b5cad; --accent-soft:#e3eefa; --box:#e8792b;
+  --up:#18804a; --down:#c23a2b; --flat:#8a96a3;
+  --f-body:"IBM Plex Sans KR",system-ui,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+  --f-num:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0f151c; --panel:#16202a; --ink:#e4eaf0; --muted:#93a1b0; --line:#273442;
+  --accent:#5aa4ec; --accent-soft:#1b3047; --box:#f0944f; --up:#4cc283; --down:#ef7466; --flat:#7b8896; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0f151c; --panel:#16202a; --ink:#e4eaf0; --muted:#93a1b0; --line:#273442;
+  --accent:#5aa4ec; --accent-soft:#1b3047; --box:#f0944f; --up:#4cc283; --down:#ef7466; --flat:#7b8896; color-scheme:dark}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:13px}
+header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:8px 24px;padding:18px 20px 12px;border-bottom:3px solid var(--box);background:var(--panel)}
+h1{margin:0;font-size:20px;font-weight:700;letter-spacing:-.01em;text-wrap:balance}
+h1 small{font-size:13px;font-weight:500;color:var(--muted);margin-left:8px}
+.meta{color:var(--muted);font-size:12px}
+.wrap{padding:14px 20px 40px;display:grid;grid-template-columns:minmax(0,1fr);gap:14px}
+.wrap>*{min-width:0}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);overflow-x:auto}
+.tabs button{border:0;background:none;font:inherit;font-weight:600;color:var(--muted);padding:9px 14px;border-bottom:3px solid transparent;cursor:pointer;white-space:nowrap}
+.tabs button[aria-selected="true"]{color:var(--accent);border-bottom-color:var(--accent)}
+.filters{display:flex;flex-wrap:wrap;gap:10px 14px;align-items:flex-end;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:12px}
+.f{display:grid;gap:4px}
+.f label{font-size:11px;color:var(--muted);font-weight:600}
+select,input[type=search]{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:6px 8px;min-width:120px}
+input[type=search]{min-width:200px}
+.seg{display:flex;border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.seg button{font:inherit;border:0;background:var(--bg);color:var(--muted);padding:6px 10px;cursor:pointer;border-right:1px solid var(--line)}
+.seg button:last-child{border-right:0}
+.seg button[aria-pressed="true"]{background:var(--accent);color:#fff}
+.btn{font:inherit;font-weight:600;border:1px solid var(--accent);color:var(--accent);background:var(--panel);border-radius:6px;padding:6px 12px;cursor:pointer}
+.btn:hover{background:var(--accent-soft)}
+.btn[hidden]{display:none}
+:focus-visible{outline:2px solid var(--box);outline-offset:1px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px}
+.kpi{background:var(--panel);border:1px solid var(--line);border-left:4px solid var(--accent);border-radius:6px;padding:10px 12px}
+.kpi .l{font-size:11px;color:var(--muted);font-weight:600}
+.kpi .v{font-family:var(--f-num);font-size:22px;font-weight:500;margin-top:2px}
+.kpi .s{font-size:11px;color:var(--muted);margin-top:2px}
+.tbl{background:var(--panel);border:1px solid var(--line);border-radius:8px;overflow:auto;max-height:72vh}
+table{border-collapse:separate;border-spacing:0;width:100%;font-variant-numeric:tabular-nums}
+th,td{padding:5px 8px;border-bottom:1px solid var(--line);white-space:nowrap;text-align:right}
+th{position:sticky;top:0;background:var(--panel);font-size:11px;color:var(--muted);font-weight:600;z-index:2}
+thead tr:nth-child(2) th{top:25px}
+th.sort{cursor:pointer;color:var(--ink)}
+th.sort:hover{color:var(--accent)}
+td.t,th.t{text-align:left}
+td.n{font-family:var(--f-num);font-size:12px}
+td.teu{font-weight:600}
+td.tot{font-family:var(--f-num);font-weight:700;background:var(--accent-soft)}
+th.mg,td.mg{border-left:1px solid var(--line)}
+td.z{color:var(--line)}
+tr.main:hover td{background:var(--accent-soft)}
+tr.sub td{background:var(--bg);font-size:12px;color:var(--muted)}
+tr.sub td.t{padding-left:28px}
+.exp{border:0;background:none;color:var(--accent);cursor:pointer;font:inherit;padding:0 4px 0 0;font-weight:600;text-align:left}
+.cnt{color:var(--muted);font-weight:400;font-size:11px}
+.tag{display:inline-block;font-size:10px;font-weight:600;padding:1px 5px;border-radius:3px;background:var(--accent-soft);color:var(--accent)}
+.tag.SOC{background:#fde9dc;color:#a24c12}
+.tag.EMPTY{background:var(--bg);color:var(--muted);border:1px solid var(--line)}
+.chg{font-family:var(--f-num);font-size:11px;font-weight:500;padding:1px 5px;border-radius:3px}
+.chg.up{color:var(--up)}.chg.down{color:var(--down)}.chg.flat{color:var(--flat)}
+.chg.new{background:var(--up);color:#fff}.chg.stop{background:var(--down);color:#fff}
+.spark{vertical-align:middle;margin-right:6px}
+.note{color:var(--muted);font-size:12px}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(360px,1fr));gap:14px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:12px;min-width:0}
+.card h2{font-size:14px;margin:0 0 10px}
+.bar{display:grid;grid-template-columns:120px 1fr 70px;gap:8px;align-items:center;margin:3px 0;font-size:12px}
+.bar .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bar .tr{height:14px;background:var(--bg);border-radius:2px;display:flex;overflow:hidden}
+.bar .tr i{display:block;height:100%}
+.bar .v{font-family:var(--f-num);text-align:right}
+.lg{display:flex;gap:12px;font-size:11px;color:var(--muted);margin-bottom:6px}
+.lg i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px;vertical-align:-1px}
+.drop{background:var(--panel);border:2px dashed var(--line);border-radius:10px;padding:48px 20px;text-align:center;display:grid;gap:10px;justify-items:center}
+.drop h2{margin:0;font-size:18px}.drop p{margin:0;color:var(--muted);max-width:60ch;line-height:1.6}
+.drop.over,body.over .drop{border-color:var(--accent);background:var(--accent-soft)}
+#err{color:var(--down);font-weight:600}
+#app[hidden],#empty[hidden]{display:none}
+.meta{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.toast{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--panel);padding:8px 14px;border-radius:6px;font-size:12px;display:none}
+@media (max-width:600px){.wrap,header{padding-left:12px;padding-right:12px}input[type=search]{min-width:0;width:100%}.f{flex:1 1 140px}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<header>
+  <h1>화주분석<small>흥아라인 부산영업팀</small></h1>
+  <div class="meta"><span id="src">자료 없음</span> <span id="upd"></span> <button class="btn" id="load">엑셀 불러오기</button><input type="file" id="file" accept=".xls,.xlsx,.csv" hidden></div>
+</header>
+<div class="wrap">
+  <section id="empty" class="drop">
+    <h2>부킹 엑셀 파일을 끌어다 놓으세요</h2>
+    <p>ERP에서 내려받은 부킹 리스트(.xls / .xlsx)를 넣으면 화주분석이 만들어집니다.<br>파일은 이 브라우저 안에서만 읽고, 서버로 전송되거나 저장되지 않습니다.</p>
+    <button class="btn" id="load2">파일 선택</button>
+    <p class="note" id="err" role="alert"></p>
+    <p class="note">필요한 열: B/K No, Org Shipper, Shipper, SALESNM, C20, C40, C45, TEU, SVC, VSL, VOY, ETD, POD, DAREA, FE, SOC, B/K Type</p>
+  </section>
+  <div id="app" hidden>
+  <nav class="tabs" role="tablist">
+    <button role="tab" id="tab-shipper" aria-selected="true" data-v="shipper">화주 분석</button>
+    <button role="tab" id="tab-forwarder" aria-selected="false" data-v="forwarder">포워더 분석</button>
+    <button role="tab" id="tab-summary" aria-selected="false" data-v="summary">영업사원·항로 요약</button>
+    <button role="tab" id="tab-bookings" aria-selected="false" data-v="bookings">부킹 조회</button>
+  </nav>
+
+  <section class="filters" aria-label="필터">
+    <div class="f"><label for="fSa">영업사원</label><select id="fSa"></select></div>
+    <div class="f"><label for="fAr">지역</label><select id="fAr"></select></div>
+    <div class="f"><label for="fPod">POD</label><select id="fPod"></select></div>
+    <div class="f"><label for="fSvc">서비스</label><select id="fSvc"></select></div>
+    <div class="f"><label>구분</label><div class="seg" id="fK">
+      <button data-k="cargo" aria-pressed="true">화물(COC+SOC)</button>
+      <button data-k="0" aria-pressed="false">COC</button>
+      <button data-k="1" aria-pressed="false">SOC</button>
+      <button data-k="2" aria-pressed="false">EMPTY</button>
+      <button data-k="all" aria-pressed="false">전체</button></div></div>
+    <div class="f"><label for="fQ">검색 (화주·포워더·B/K)</label><input type="search" id="fQ" placeholder="화주명, 포워더명, B/K No"></div>
+    <div class="f"><label for="fTr">트렌드</label><select id="fTr">
+      <option value="">전체</option><option value="up">증가</option><option value="down">감소</option><option value="new">신규</option><option value="stop">중단</option></select></div>
+    <button class="btn" id="reset">초기화</button>
+    <button class="btn" id="xls" hidden>엑셀 다운로드</button>
+  </section>
+
+  <section class="kpis" id="kpis"></section>
+  <div id="view"></div>
+  <p class="note">TEU = 20ft×1 + 40ft×2 (40ft에는 40HC 포함). 트렌드는 자료의 첫 달 대비 마지막 달 TEU 변화이고, 신규는 첫 달 실적 0, 중단은 마지막 달 실적 0입니다. EMPTY(공컨 이송)는 기본 화면에서 제외됩니다.</p>
+  </div>
+</div>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+const $=s=>document.querySelector(s);
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmt=n=>n?n.toLocaleString('ko-KR'):'';
+const fmt0=n=>(n||0).toLocaleString('ko-KR');
+let D,R,M,ML,state={view:'shipper',sa:'',ar:'',pod:'',svc:'',k:'cargo',q:'',tr:'',sort:'tot',dir:-1,open:new Set()};
+let lastTable=null;
+
+
+const NEED={bk:'B/K No',sh:'Org Shipper',fw:'Shipper',sa:'SALESNM',c20:'C20',c40:'C40',c45:'C45',teu:'TEU',svc:'SVC',vsl:'VSL',voy:'VOY',etd:'ETD',pod:'POD',ar:'DAREA',fe:'FE',soc:'SOC',bt:'B/K Type'};
+const AR={JP:'일본',CN:'중국',IA:'동남아·인도',KR:'국내',RU:'러시아'};
+const KINDS=['COC','SOC','EMPTY'];
+const clean=v=>{v=v==null?'':String(v).replace(/\s+/g,' ').trim();return v||'(미지정)'};
+const num=v=>{const n=+String(v==null?'':v).replace(/,/g,'');return isFinite(n)?n:0};
+function toYmd(v){
+  if(v instanceof Date&&!isNaN(v))return v.getFullYear()+'-'+String(v.getMonth()+1).padStart(2,'0')+'-'+String(v.getDate()).padStart(2,'0');
+  if(typeof v==='number'){const d=XLSX.SSF.parse_date_code(v);if(d)return d.y+'-'+String(d.m).padStart(2,'0')+'-'+String(d.d).padStart(2,'0')}
+  const m=String(v||'').match(/(\d{4})[-./]?(\d{1,2})[-./]?(\d{1,2})/);return m?m[1]+'-'+m[2].padStart(2,'0')+'-'+m[3].padStart(2,'0'):''}
+function parseBook(buf,name){
+  const wb=XLSX.read(buf,{type:'array',cellDates:true});
+  const ws=wb.Sheets[wb.SheetNames[0]];
+  const aoa=XLSX.utils.sheet_to_json(ws,{header:1,raw:true,defval:null,blankrows:false});
+  const hr=aoa.findIndex(r=>r&&r.some(c=>String(c).trim()==='B/K No'));
+  if(hr<0)throw new Error('"B/K No" 열을 찾지 못했습니다. ERP 부킹 리스트 원본 파일인지 확인해 주세요.');
+  const head=aoa[hr].map(c=>c==null?'':String(c).trim());const ix={};const miss=[];
+  for(const[k,h]of Object.entries(NEED)){const i=head.indexOf(h);if(i<0)miss.push(h);ix[k]=i}
+  if(miss.length)throw new Error('필요한 열이 없습니다: '+miss.join(', '));
+  const g=(r,k)=>r[ix[k]];
+  const raw=[];
+  for(const r of aoa.slice(hr+1)){
+    const bk=clean(g(r,'bk'));if(bk==='(미지정)'||['TOTAL','COC','SOC'].includes(bk.toUpperCase()))continue;
+    const etd=toYmd(g(r,'etd'));if(!etd)continue;
+    const fe=clean(g(r,'fe')).toUpperCase(),soc=clean(g(r,'soc')).toUpperCase(),bt=clean(g(r,'bt'));
+    const k=fe==='EMPTY'?2:(soc==='SOC'||soc==='Y'||bt.toUpperCase()==='LINE SOC')?1:0;
+    raw.push({mk:etd.slice(0,7).replace('-',''),sh:clean(g(r,'sh')),fw:clean(g(r,'fw')),sa:clean(g(r,'sa')),pod:clean(g(r,'pod')),svc:clean(g(r,'svc')),ar:clean(g(r,'ar')),
+      k,c20:num(g(r,'c20')),c40:num(g(r,'c40'))+num(g(r,'c45')),teu:num(g(r,'teu')),bk,vv:(clean(g(r,'vsl'))+' '+clean(g(r,'voy'))).replace(/\(미지정\)/g,'').trim(),etd,bt});
+  }
+  if(!raw.length)throw new Error('읽을 수 있는 부킹 행이 없습니다.');
+  const months=[...new Set(raw.map(r=>r.mk))].sort();
+  const dic={};['sh','fw','sa','pod','svc','ar'].forEach(k=>{dic[k]=[...new Set(raw.map(r=>r[k]))].sort()});
+  const idx={};Object.keys(dic).forEach(k=>{idx[k]=new Map(dic[k].map((v,i)=>[v,i]))});
+  const rows=raw.map(r=>[months.indexOf(r.mk),idx.sh.get(r.sh),idx.fw.get(r.fw),idx.sa.get(r.sa),idx.pod.get(r.pod),idx.svc.get(r.svc),idx.ar.get(r.ar),r.k,r.c20,r.c40,r.teu,r.bk,r.vv,r.etd,r.bt]);
+  const ml=months.map(m=>+m.slice(4)+'월');
+  return{updated:'',source:name+' · ETD '+ml[0]+(ml.length>1?'~'+ml[ml.length-1]:'')+' · '+rows.length.toLocaleString('ko-KR')+'건',months,kinds:KINDS,dic,arname:AR,rows};
+}
+function loadFile(f){
+  if(!f)return; $('#err').textContent=''; $('#src').textContent='읽는 중…';
+  const rd=new FileReader();
+  rd.onload=()=>{try{const d=parseBook(new Uint8Array(rd.result),f.name);$('#empty').hidden=true;$('#app').hidden=false;init(d)}
+    catch(e){if(D){$('#src').textContent=D.source;toast(e.message||String(e));return}$('#empty').hidden=false;$('#app').hidden=true;$('#src').textContent='자료 없음';$('#err').textContent=e.message||String(e)}};
+  rd.onerror=()=>{$('#err').textContent='파일을 읽지 못했습니다.'};
+  rd.readAsArrayBuffer(f);
+}
+$('#load').addEventListener('click',()=>$('#file').click());
+$('#load2').addEventListener('click',()=>$('#file').click());
+$('#file').addEventListener('change',e=>{loadFile(e.target.files[0]);e.target.value=''});
+['dragenter','dragover'].forEach(t=>document.addEventListener(t,e=>{e.preventDefault();document.body.classList.add('over')}));
+['dragleave','drop'].forEach(t=>document.addEventListener(t,e=>{e.preventDefault();if(t==='drop'||e.target===document.documentElement)document.body.classList.remove('over')}));
+document.addEventListener('drop',e=>{document.body.classList.remove('over');loadFile(e.dataTransfer.files[0])});
+if(!window.XLSX){$('#err').textContent='vendor/xlsx.full.min.js 파일을 불러오지 못했습니다. index.html과 같은 위치에 vendor 폴더가 있는지 확인해 주세요.'}
+
+
+let inited=false;
+function init(d){
+  D=d; M=d.months.length; state.open.clear();
+  ML=d.months.map(m=>+m.slice(4)+'월');
+  R=d.rows.map(r=>({m:r[0],sh:r[1],fw:r[2],sa:r[3],pod:r[4],svc:r[5],ar:r[6],k:r[7],c20:r[8],c40:r[9],teu:r[10],bk:r[11],vv:r[12],etd:r[13],bt:r[14]}));
+  $('#src').textContent=d.source;
+  const cnt=key=>{const c={};R.forEach(r=>{if(r.k<2)c[r[key]]=(c[r[key]]||0)+r.teu});return c};
+  const opt=(sel,key,label)=>{const c=cnt(key);const ids=d.dic[key].map((v,i)=>i).sort((a,b)=>(c[b]||0)-(c[a]||0));
+    $(sel).innerHTML='<option value="">전체</option>'+ids.map(i=>`<option value="${i}">${esc(label?label(d.dic[key][i]):d.dic[key][i])}</option>`).join('')};
+  opt('#fSa','sa'); opt('#fAr','ar',v=>(d.arname[v]||v)+' ('+v+')'); opt('#fPod','pod'); opt('#fSvc','svc');
+  Object.assign(state,{sa:'',ar:'',pod:'',svc:'',q:'',tr:''});$('#fQ').value='';$('#fTr').value='';
+  if(inited){render();return} inited=true;
+  ['sa','ar','pod','svc'].forEach(k=>$('#f'+k[0].toUpperCase()+k.slice(1)).addEventListener('change',e=>{state[k]=e.target.value;render()}));
+  $('#fQ').addEventListener('input',e=>{state.q=e.target.value.trim().toLowerCase();render()});
+  $('#fTr').addEventListener('change',e=>{state.tr=e.target.value;render()});
+  $('#fK').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;state.k=b.dataset.k;
+    [...$('#fK').children].forEach(x=>x.setAttribute('aria-pressed',x===b));render()});
+  $('#reset').addEventListener('click',()=>{Object.assign(state,{sa:'',ar:'',pod:'',svc:'',k:'cargo',q:'',tr:''});state.open.clear();
+    ['#fSa','#fAr','#fPod','#fSvc','#fTr'].forEach(s=>$(s).value='');$('#fQ').value='';
+    [...$('#fK').children].forEach(x=>x.setAttribute('aria-pressed',x.dataset.k==='cargo'));render()});
+  document.querySelectorAll('.tabs button').forEach(b=>b.addEventListener('click',()=>{location.hash=b.dataset.v}));
+  window.addEventListener('hashchange',route); route();
+  $('#view').addEventListener('click',onView);
+  $('#xls').addEventListener('click',exportXls);
+  setupDownloads();
+}
+function route(){const v=location.hash.slice(1);state.view=['shipper','forwarder','summary','bookings'].includes(v)?v:'shipper';
+  document.querySelectorAll('.tabs button').forEach(b=>b.setAttribute('aria-selected',b.dataset.v===state.view));
+  state.open.clear(); state.sort='tot'; state.dir=-1; render()}
+
+function filtered(){
+  const s=state,q=s.q,dic=D.dic;
+  return R.filter(r=>{
+    if(s.k==='cargo'){if(r.k===2)return false}else if(s.k!=='all'&&r.k!==+s.k)return false;
+    if(s.sa!==''&&r.sa!==+s.sa)return false; if(s.ar!==''&&r.ar!==+s.ar)return false;
+    if(s.pod!==''&&r.pod!==+s.pod)return false; if(s.svc!==''&&r.svc!==+s.svc)return false;
+    if(q&&!(dic.sh[r.sh].toLowerCase().includes(q)||dic.fw[r.fw].toLowerCase().includes(q)||r.bk.toLowerCase().includes(q)))return false;
+    return true});
+}
+function newAgg(){return{m:Array.from({length:M},()=>[0,0,0]),n:0,tot:0,c:{}}}
+function add(a,r){const x=a.m[r.m];x[0]+=r.c20;x[1]+=r.c40;x[2]+=r.teu;a.n++;a.tot+=r.teu}
+function tally(a,key,v,w){a.c[key]=a.c[key]||{};a.c[key][v]=(a.c[key][v]||0)+w}
+function topOf(a,key){const o=a.c[key]||{};const ks=Object.keys(o).sort((x,y)=>o[y]-o[x]);return{id:ks[0],more:ks.length-1}}
+function trend(a){if(M<2)return{cls:'flat',t:'—',v:0,key:'flat'};const f=a.m[0][2],l=a.m[M-1][2];
+  if(!f&&!l)return{cls:'flat',t:'—',v:0,key:'flat'};
+  if(!f)return{cls:'new',t:'신규',v:1e9,key:'new'}; if(!l)return{cls:'stop',t:'중단',v:-1e9,key:'stop'};
+  const p=(l-f)/f*100;return{cls:p>5?'up':p<-5?'down':'flat',t:(p>0?'+':'')+p.toFixed(0)+'%',v:p,key:p>0?'up':p<0?'down':'flat'}}
+function spark(a){const v=a.m.map(x=>x[2]),mx=Math.max(...v,1),w=54,h=18,st=M>1?w/(M-1):0;
+  const pts=v.map((y,i)=>[i*st,h-2-(y/mx)*(h-4)]);const p=pts.map(q=>q.join(',')).join(' ');
+  const e=pts[M-1];return `<svg class="spark" width="${w}" height="${h}" aria-hidden="true"><polygon points="0,${h} ${p} ${w},${h}" fill="var(--accent-soft)"/><polyline points="${p}" fill="none" stroke="var(--accent)" stroke-width="1.5"/><circle cx="${e[0]}" cy="${e[1]}" r="2.4" fill="var(--box)"/></svg>`}
+
+function kpis(rows){
+  const tm=Array(M).fill(0);let teu=0;const sh=new Set();rows.forEach(r=>{tm[r.m]+=r.teu;teu+=r.teu;sh.add(r.sh)});
+  
+  $('#kpis').innerHTML=[
+    ['TEU 합계 ('+ML[0]+'~'+ML[M-1]+')',fmt0(teu),'월평균 '+fmt0(Math.round(teu/M))],
+    ['부킹 건수',fmt0(rows.length),'화주 '+fmt0(sh.size)+'곳'],
+    ...ML.map((l,i)=>[l+' TEU',fmt0(tm[i]),i?`전월 대비 <span class="chg ${tm[i]>=tm[i-1]?'up':'down'}">${tm[i-1]?((tm[i]-tm[i-1])/tm[i-1]*100>0?'+':'')+((tm[i]-tm[i-1])/tm[i-1]*100).toFixed(1)+'%':'—'}</span>`:'기준월'])
+  ].map(k=>`<div class="kpi"><div class="l">${k[0]}</div><div class="v">${k[1]}</div><div class="s">${k[2]}</div></div>`).join('');
+}
+
+function render(){
+  if(!D)return; const rows=filtered(); kpis(rows);
+  if(state.view==='shipper')groupView(rows,'sh','화주','fw','포워더');
+  else if(state.view==='forwarder')groupView(rows,'fw','포워더','sh','화주');
+  else if(state.view==='summary')summaryView(rows);
+  else bookingView(rows);
+}
+
+function groupView(rows,key,label,key2,label2){
+  const dic=D.dic,g={};
+  rows.forEach(r=>{const a=g[r[key]]||(g[r[key]]=newAgg());add(a,r);tally(a,key2,r[key2],r.teu);tally(a,'sa',r.sa,r.teu);tally(a,'pod',r.pod,r.teu);tally(a,'k',r.k,r.teu)});
+  let list=Object.entries(g).map(([id,a])=>({id:+id,a,tr:trend(a)}));
+  if(state.tr)list=list.filter(x=>x.tr.key===state.tr);
+  const s=state.sort,dir=state.dir;
+  list.sort((x,y)=>{let v;
+    if(s==='tot')v=x.a.tot-y.a.tot; else if(s==='name')v=dic[key][x.id].localeCompare(dic[key][y.id],'ko');
+    else if(s==='tr')v=x.tr.v-y.tr.v; else if(s==='n')v=x.a.n-y.a.n; else v=x.a.m[+s][2]-y.a.m[+s][2];
+    return v*dir});
+  const arrow=k=>state.sort===k?(state.dir<0?' ▼':' ▲'):'';
+  let h=`<div class="tbl"><table><thead><tr><th class="t sort" rowspan="2" data-s="name">${label}${arrow('name')}</th><th class="t" rowspan="2">구분</th><th class="t" rowspan="2">주 ${label2}</th><th class="t" rowspan="2">영업사원</th><th class="t" rowspan="2">주 POD</th>`+
+    ML.map((l,i)=>`<th colspan="3" class="mg sort" data-s="${i}">${l}${arrow(String(i))}</th>`).join('')+
+    `<th rowspan="2" class="mg sort" data-s="tot">TOTAL<br>TEU${arrow('tot')}</th><th rowspan="2" class="t sort" data-s="tr">트렌드${arrow('tr')}</th></tr><tr>`+
+    ML.map(()=>`<th class="mg">20ft</th><th>40ft</th><th>TEU</th>`).join('')+`</tr></thead><tbody>`;
+  const cells=a=>a.m.map(x=>`<td class="n mg ${x[0]?'':'z'}">${x[0]||'·'}</td><td class="n ${x[1]?'':'z'}">${x[1]||'·'}</td><td class="n teu ${x[2]?'':'z'}">${x[2]||'·'}</td>`).join('');
+  const out=[];
+  const LIM=600; list.slice(0,LIM).forEach(x=>{
+    const a=x.a,t2=topOf(a,key2),ts=topOf(a,'sa'),tp=topOf(a,'pod'),tk=topOf(a,'k');
+    const open=state.open.has(x.id);
+    h+=`<tr class="main"><td class="t"><button class="exp" data-id="${x.id}" aria-expanded="${open}">${open?'▼':'▶'} ${esc(dic[key][x.id])}</button> <span class="cnt">(${a.n}건)</span></td>`+
+      `<td class="t"><span class="tag ${D.kinds[tk.id]}">${D.kinds[tk.id]}</span></td>`+
+      `<td class="t">${esc(dic[key2][t2.id])}${t2.more?` <span class="cnt">+${t2.more}</span>`:''}</td>`+
+      `<td class="t">${esc(dic.sa[ts.id])}${ts.more?` <span class="cnt">+${ts.more}</span>`:''}</td>`+
+      `<td class="t">${esc(dic.pod[tp.id])}${tp.more?` <span class="cnt">+${tp.more}</span>`:''}</td>`+
+      cells(a)+`<td class="tot mg">${fmt0(a.tot)}</td><td class="t">${spark(a)}<span class="chg ${x.tr.cls}">${x.tr.t}</span></td></tr>`;
+    out.push([dic[key][x.id],D.kinds[tk.id],dic[key2][t2.id],dic.sa[ts.id],dic.pod[tp.id],...a.m.flat(),a.tot,x.tr.t,a.n]);
+    if(open){const sub={};rows.forEach(r=>{if(r[key]!==x.id)return;const k2=r[key2]+'|'+r.pod;const b=sub[k2]||(sub[k2]={a:newAgg(),f:r[key2],p:r.pod,s:r.sa});add(b.a,r)});
+      Object.values(sub).sort((p,q)=>q.a.tot-p.a.tot).forEach(b=>{
+        h+=`<tr class="sub"><td class="t">${esc(dic[key2][b.f])} <span class="cnt">(${b.a.n}건)</span></td><td></td><td></td><td class="t">${esc(dic.sa[b.s])}</td><td class="t">${esc(dic.pod[b.p])}</td>${cells(b.a)}<td class="n mg">${fmt0(b.a.tot)}</td><td class="t">${spark(b.a)}</td></tr>`})}
+  });
+  if(!list.length)h+=`<tr><td class="t" colspan="${8+M*3}">조건에 맞는 ${label}가 없습니다. 필터를 바꾸거나 초기화해 보세요.</td></tr>`;
+  h+='</tbody></table></div>';
+  if(list.length>LIM)h+=`<p class="note">상위 ${LIM}곳까지 표시합니다 (전체 ${fmt0(list.length)}곳). 검색이나 필터로 좁히면 나머지도 볼 수 있고, 엑셀 다운로드에는 전부 들어갑니다.</p>`;
+  else h=`<p class="note">${label} ${fmt0(list.length)}곳 · ${label}명을 누르면 ${label2}·POD별 내역이 펼쳐집니다.</p>`+h;
+  list.slice(LIM).forEach(x=>{const a=x.a,t2=topOf(a,key2),ts=topOf(a,'sa'),tp=topOf(a,'pod'),tk=topOf(a,'k');out.push([dic[key][x.id],D.kinds[tk.id],dic[key2][t2.id],dic.sa[ts.id],dic.pod[tp.id],...a.m.flat(),a.tot,x.tr.t,a.n])});
+  lastTable={name:label+'분석',head:[label,'구분','주 '+label2,'영업사원','주 POD',...ML.flatMap(l=>[l+' 20ft',l+' 40ft',l+' TEU']),'TOTAL TEU','트렌드','부킹건수'],rows:out};
+  $('#view').innerHTML=h;
+}
+
+function summaryView(rows){
+  const dic=D.dic;
+  const by=key=>{const g={};rows.forEach(r=>{const a=g[r[key]]||(g[r[key]]=newAgg());add(a,r)});return Object.entries(g).map(([id,a])=>({id:+id,a})).sort((x,y)=>y.a.tot-x.a.tot)};
+  const cols=['var(--line)','#7fb0df','var(--accent)'];
+  const bars=(list,key,lab,n)=>{const mx=Math.max(1,...list.map(x=>x.a.tot));
+    return `<div class="lg">${ML.map((l,i)=>`<span><i style="background:${cols[i%3]}"></i>${l}</span>`).join('')}</div>`+
+      list.slice(0,n).map(x=>`<div class="bar"><span class="nm" title="${esc(lab(x.id))}">${esc(lab(x.id))}</span><span class="tr">${x.a.m.map((m,i)=>`<i style="width:${m[2]/mx*100}%;background:${cols[i%3]}" title="${ML[i]} ${fmt0(m[2])} TEU"></i>`).join('')}</span><span class="v">${fmt0(x.a.tot)}</span></div>`).join('')};
+  const tbl=(list,lab,title)=>`<div class="tbl" style="max-height:none"><table><thead><tr><th class="t">${title}</th>${ML.map(l=>`<th>${l}</th>`).join('')}<th>TOTAL</th><th>비중</th><th class="t">트렌드</th></tr></thead><tbody>`+
+    (()=>{const T=list.reduce((s,x)=>s+x.a.tot,0)||1;return list.map(x=>{const t=trend(x.a);return `<tr><td class="t">${esc(lab(x.id))}</td>${x.a.m.map(m=>`<td class="n">${fmt(m[2])||'·'}</td>`).join('')}<td class="tot">${fmt0(x.a.tot)}</td><td class="n">${(x.a.tot/T*100).toFixed(1)}%</td><td class="t">${spark(x.a)}<span class="chg ${t.cls}">${t.t}</span></td></tr>`}).join('')})()+'</tbody></table></div>';
+  const sa=by('sa'),svc=by('svc'),ar=by('ar'),pod=by('pod');
+  const arl=i=>(D.arname[dic.ar[i]]||dic.ar[i]);
+  $('#view').innerHTML=`<div class="grid2">
+   <div class="card"><h2>영업사원별 TEU</h2>${bars(sa,'sa',i=>dic.sa[i],15)}</div>
+   <div class="card"><h2>지역별 TEU</h2>${bars(ar,'ar',arl,10)}<h2 style="margin-top:14px">POD 상위 15</h2>${bars(pod,'pod',i=>dic.pod[i],15)}</div>
+   <div class="card"><h2>서비스(SVC) 상위 20</h2>${bars(svc,'svc',i=>dic.svc[i],20)}</div>
+  </div>
+  <div class="grid2"><div class="card"><h2>영업사원 월별 실적</h2>${tbl(sa,i=>dic.sa[i],'영업사원')}</div>
+  <div class="card"><h2>서비스 월별 실적</h2>${tbl(svc,i=>dic.svc[i],'서비스')}</div></div>`;
+  lastTable={name:'영업사원별요약',head:['영업사원',...ML.map(l=>l+' TEU'),'TOTAL TEU'],rows:sa.map(x=>[dic.sa[x.id],...x.a.m.map(m=>m[2]),x.a.tot])};
+}
+
+function bookingView(rows){
+  const dic=D.dic; const list=[...rows].sort((a,b)=>b.etd.localeCompare(a.etd)||a.bk.localeCompare(b.bk)); const LIM=500;
+  let h=`<p class="note">부킹 ${fmt0(list.length)}건 (ETD 최신순)${list.length>LIM?` · 화면에는 ${LIM}건까지 표시, 엑셀에는 전부 포함`:''}</p><div class="tbl"><table><thead><tr><th class="t">B/K No</th><th class="t">ETD</th><th class="t">선명/항차</th><th class="t">SVC</th><th class="t">POD</th><th class="t">화주</th><th class="t">포워더</th><th class="t">영업사원</th><th class="t">구분</th><th class="t">B/K Type</th><th>20ft</th><th>40ft</th><th>TEU</th></tr></thead><tbody>`;
+  h+=list.slice(0,LIM).map(r=>`<tr class="main"><td class="t n">${esc(r.bk)}</td><td class="t n">${r.etd}</td><td class="t">${esc(r.vv)}</td><td class="t">${esc(dic.svc[r.svc])}</td><td class="t">${esc(dic.pod[r.pod])}</td><td class="t">${esc(dic.sh[r.sh])}</td><td class="t">${esc(dic.fw[r.fw])}</td><td class="t">${esc(dic.sa[r.sa])}</td><td class="t"><span class="tag ${D.kinds[r.k]}">${D.kinds[r.k]}</span></td><td class="t">${esc(r.bt)}</td><td class="n">${fmt(r.c20)||'·'}</td><td class="n">${fmt(r.c40)||'·'}</td><td class="n teu">${fmt0(r.teu)}</td></tr>`).join('');
+  if(!list.length)h+='<tr><td class="t" colspan="13">조건에 맞는 부킹이 없습니다.</td></tr>';
+  $('#view').innerHTML=h+'</tbody></table></div>';
+  lastTable={name:'부킹조회',head:['B/K No','ETD','선명/항차','SVC','POD','화주','포워더','영업사원','구분','B/K Type','20ft','40ft','TEU'],
+    rows:list.map(r=>[r.bk,r.etd,r.vv,dic.svc[r.svc],dic.pod[r.pod],dic.sh[r.sh],dic.fw[r.fw],dic.sa[r.sa],D.kinds[r.k],r.bt,r.c20,r.c40,r.teu])};
+}
+
+function onView(e){
+  const th=e.target.closest('th.sort');
+  if(th){const s=th.dataset.s;if(state.sort===s)state.dir*=-1;else{state.sort=s;state.dir=s==='name'?1:-1}render();return}
+  const b=e.target.closest('button.exp');
+  if(b){const id=+b.dataset.id;state.open.has(id)?state.open.delete(id):state.open.add(id);render()}
+}
+
+function setupDownloads(){$('#xls').hidden=false}
+function toast(t){const el=$('#toast');el.textContent=t;el.style.display='block';clearTimeout(toast.t);toast.t=setTimeout(()=>el.style.display='none',3000)}
+function saveBlob(blob,name){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000)}
+function exportXls(){
+  if(!lastTable)return;
+  const d=new Date(),ds=d.getFullYear()+String(d.getMonth()+1).padStart(2,'0')+String(d.getDate()).padStart(2,'0');
+  if(window.XLSX){const ws=XLSX.utils.aoa_to_sheet([lastTable.head,...lastTable.rows]);const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,lastTable.name.slice(0,31));
+    saveBlob(new Blob([XLSX.write(wb,{bookType:'xlsx',type:'array'})],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),`${lastTable.name}_${ds}.xlsx`);return}
+  const q=v=>{v=v==null?'':String(v);return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v};
+  const csv='\ufeff'+[lastTable.head,...lastTable.rows].map(r=>r.map(q).join(',')).join('\r\n');
+  saveBlob(new Blob([csv],{type:'text/csv;charset=utf-8'}),`${lastTable.name}_${ds}.csv`);toast('인터넷이 막혀 있어 CSV로 저장했습니다 (엑셀에서 열림).')
+}
+</script>
+</body>
+</html>
